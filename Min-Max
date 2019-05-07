@@ -1,0 +1,33 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat May  4 11:35:38 2019
+
+@author: ngomb
+"""
+from platypus import NSGAII, Problem, Real
+# define constant parameters
+items = 3        # items
+h=[2,1,4]        # holding costs
+D=[10,20,5]      # Demand rate
+S=10.0           # The major setup cost       
+s=[2.0,3.0,4.0]  # The minor setup costs
+B=2000.0
+c=[10,10,10]
+k=[]
+def informs(vars):
+    x=vars[0]               #T period
+    for i in range(items):
+        k.append(vars[1])
+    return [x*0.5*sum(h[0:items]*D[0:items]*k[0:items]), x*(S+sum(s[0:items]*k[0:items]))],\
+                      [x*sum(D[0:items]*k[0:items]*c[0:items])-B]
+
+#(2,2,2) number of decision variables, number of objectives, number of constraints
+problem = Problem(2, 2, 1)
+#PROBLEM.TYPES is a way to assign all decision variables to the type. 
+problem.types[:] = [Real(0, 5), Real(0, 5)]
+problem.constraints[:] = "<=0"
+problem.function = informs
+problem.directions[0] = Problem.MINIMIZE
+problem.directions[1] = Problem.MAXIMIZE
+algorithm = NSGAII(problem)
+algorithm.run(10000)

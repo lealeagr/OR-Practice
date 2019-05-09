@@ -62,9 +62,9 @@ s = {}
 s = list(pd_JRP['Minor ordering cost P1'])# determining how to fill out the missing data, one suggestion, give the average value
 #print('Minor ordering cost P1')
 #print(s)
-#w = {}
-#w = list(pd_JRP['Weight Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
-#print('Weight Contribution(int)')
+w = {}
+w = list(pd_JRP['Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
+print('Contribution(int)')
 #print(w)
 #v = {}
 #v = list(pd_JRP['Value Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
@@ -75,7 +75,7 @@ s = list(pd_JRP['Minor ordering cost P1'])# determining how to fill out the miss
 # s=[2.0,3.0,4.0]  # The minor setup costs
 #print(len(s))
 #items = len(s)  # items
-S=14020.0       # The major setup cost       
+S=1820       # The major setup cost       
 #value = 1000    # capacity of value would allow transpotation to deliveer
 #weight = 150    # capacity of weight would allow transpotation to deliveer
             
@@ -98,13 +98,18 @@ random.seed(42)
 
 #include capacity constraint?
 warehouseC=0
-w = [random.randint(1,50) for i in items]
+#w = [random.randint(1,50) for i in items]
 H=100000000
 
 #include budget constraint?
 budgetC=0
 budget=2000
 costs = [random.randint(1,50) for i in items]
+
+#include weight constraint?
+weightREQ=1
+minWeight=100
+
 
 #include minimum order quantity?
 minC=0
@@ -163,7 +168,7 @@ for i in items:
 for i in items:
     m.addConstr(quicksum(x[patterns.index(j),t]*y[patterns.index(j),i] for j in patterns for t in periods) >= 1)
 
-# Statisfy demand and creat stock
+# Satisfy demand and creat stock
 for i in items:
     for t in periods:
         if t != 0:
@@ -185,6 +190,14 @@ if warehouseC==1:
 if budgetC==1:
     m.addConstr(quicksum(B[i,t] for i in items for t in periods) <= budget)
 
+#Minimum weight for ordering
+if weightREQ==1:
+    for t in periods:
+        for j in patterns:
+            m.addConstr(quicksum(B[i,t]*w[i]*y[patterns.index(j),i] for i in items) >= minWeight*x[patterns.index(j),t])
+
+
+
 # Miniumum number of one item that have to be orderd
 if minC==1:
     for i in items:
@@ -196,7 +209,7 @@ if truckC==1:
         for t in periods:
             m.addConstr(x[patterns.index(j),t]*quicksum(B[i,t] for i in items) <= Truck)
             
-obj= quicksum(quicksum(l[i,t]*h[i] for i in items) for t in periods)+quicksum(quicksum(x[patterns.index(j),t]*(S+quicksum(s[i]*y[patterns.index(j),i] for i in items)) for j in patterns) for t in periods)
+obj=quicksum((l[i,t]+D[i,t])*h[i] for i in items for t in periods)+quicksum(quicksum(x[patterns.index(j),t]*(S+quicksum(s[i]*y[patterns.index(j),i] for i in items)) for j in patterns) for t in periods)
 
 m.setObjective(obj, GRB.MINIMIZE)
 m.update()
@@ -251,6 +264,7 @@ for v in m.getVars():
         print('%s %g' % (v.varName, v.x))
 
 print('Obj: %g' % obj.getValue())
+
 
 #printSolution (m,x,y,B,l)
 

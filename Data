@@ -1,0 +1,114 @@
+txt = ""
+with open('setB-001.txt') as fo:
+    for rec in fo:
+        txt = txt + rec         
+#print(txt)
+mjc = txt.split('#')
+
+
+#DAVG
+
+davg = {}
+davg_temp = txt.split('#Syntax: DAVG-Keyword;Item-ID(String);MeanDemand(double)')[1].split('#Item holding costs per period')[0].split('DAVG;')
+# print(davg_temp)
+for item in davg_temp:
+    temp = item.split(';')
+    if(len(temp) == 1):
+        continue;
+#     davg[temp[0]]=[];
+    davg[temp[0]] = temp[1]
+#     print(temp[1])
+
+
+#DPP
+
+dpp = {}
+dpp_temp = txt.split('#Syntax: DPP-Keyword;Item-ID(String);Demand1(int);Demand2;...')[1].split('#Item mean demand')[0].split('DPP;')
+# print(dpp)
+for item in dpp_temp:
+    temp = item.split(';')
+    if(len(temp) == 1):
+        continue;
+    dpp[temp[0]]=[];
+    
+    for i in range(len(temp)):
+#     for time_period in temp:
+        if( i == 0):
+            continue;
+        dpp[temp[0]].append(temp[i])
+        
+        
+        
+#Holding Costs
+
+hc = {}
+hc_temp = txt.split('#Syntax: HLC-Keyword;Item-ID(String);HoldingCostsPerUnit1(double);HoldingCostsPerUnit2(double);...')[1].split('#Item minor ordering costs per period')[0].split('HLC;')
+# print(hc_temp)
+for item in hc_temp:
+    temp = item.split(';')
+    if(len(temp) == 1):
+        continue;
+#     hc[temp[0]]=[];
+    hc[temp[0]] = temp[1]
+#     print(temp[1])
+        
+        
+#Minor Ordering costs
+
+#MNC
+
+mnc = {}
+mnc_temp = txt.split('#Syntax: MNC-Keyword;Item-ID(String);MinorOrderingCosts1(double);MinorOrderingCosts2(double);...')[1].split('#Item contribution')[0].split('MNC;')
+# print(mnc)
+for item in mnc_temp:
+    temp = item.split(';')
+    if(len(temp) == 1):
+        continue;
+    mnc[temp[0]]=[];
+    
+    for i in range(len(temp)):
+#     for time_period in temp:
+        if( i == 0):
+            continue;
+        mnc[temp[0]].append(temp[i])
+        
+
+#Item Contribution
+
+
+icw = {}
+icw_temp = txt.split('#Syntax: CNT-Keyword;Item-ID(String);Requirement-ID;Contribution(int)')[1].split('CNT;')
+# print(ic_temp)
+for item in icw_temp:
+    temp = item.split(';Weight;')
+    if(len(temp) == 1):
+        continue;
+#     ic[temp[0]]=[];
+    icw[temp[0]] = temp[1]
+#     print(temp[1])   
+
+icv = {}
+icv_temp = txt.split('#Syntax: CNT-Keyword;Item-ID(String);Requirement-ID;Contribution(int)')[1].split('CNT;')
+# print(ic_temp)
+for item in icv_temp:
+    temp = item.split(';Value;')
+    if(len(temp) == 1):
+        continue;
+#     ic[temp[0]]=[];
+    icv[temp[0]] = temp[1]
+#     print(temp[1])   
+        
+                
+        
+#list(map(str.strip,mnc))
+        
+        
+        
+        
+print(mjc[4].split('MJC')[2].split(';')[3])
+print(davg['Item.1'])
+print(dpp['Item.4'][8])
+print(hc['Item.1'])
+print(mnc['Item.2'])
+print(icw['Item.1'])
+print(icv['Item.99'])

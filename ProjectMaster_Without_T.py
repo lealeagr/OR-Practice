@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Apr 25 09:14:27 2019
-
 @author: LeaGrahn
 """
 from gurobipy import *
@@ -18,6 +17,49 @@ planningHorizon= 10
 periods = range(planningHorizon)
 items = range(nitems)
 
+#%% Import Data
+import pandas as pd
+#import numpy as np
+#from scipy.optimize import minimize
+
+# reading file by pandas
+pd_JRP = pd.read_excel("setA-002-withValue.xlsx")
+#print(pd_JRP.columns)
+pd_JRP.head()
+
+D = {}
+for i in items:
+    for t in periods:
+        D[i,t]= pd_JRP['DPP('+str(t+1)+')'][i]
+#print('Demand')
+#print(D)
+h = {}
+h = list(pd_JRP['Holding cost'])
+#print('Holding cost')
+#print(h)
+s = {}
+for i in items:
+    for t in periods:
+        s[i,t] = pd_JRP['Minor ordering cost P'+str(t+1)][i]# determining how to fill out the missing data, one suggestion, give the average value
+#print('Minor ordering cost P1')
+#print(s)
+w = {}
+w = list(pd_JRP['Weight Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
+##print('Contribution(int)')
+##print(w)
+v = {}
+v = list(pd_JRP['Value Contribution'])# determining how to fill out the missing data, one suggestion, give the average value
+#print('Value Contribution(int)')
+#print(v)
+# h=[2,1,4]        # holding costs
+# D=[10,20,5]      # Demand rate
+# s=[2.0,3.0,4.0]  # The minor setup costs
+#print(len(s))
+#items = len(s)  # items
+S=1820       # The major setup cost       
+#value = 1000    # capacity of value would allow transpotation to deliveer
+#weight = 150    # capacity of weight would allow transpotation to deliveer
+
 #%% Creat patterns
 import itertools
 # Initialization
@@ -25,9 +67,23 @@ patterns = []
 elements = []
 combinations = []
 
+
+
 # Fill patterns with one-item-patterns
+demand={}
+maxweight={}
+maxvalue={}
+
+for i in items:
+    demand[i]=0
+    for t in periods:
+        demand[i]=D[i,t]+demand[i]
+    maxweight[i]=demand[i]*w[i]
+    maxvalue[i]=demand[i]*v[i]
+
 for i in items:
     patterns.append(i)
+
 # Elemens is needed for 
 elements = patterns.copy()
 
@@ -38,47 +94,7 @@ for i in range(nitems+1):
         for combination in combinations:
             patterns.append(combination)
 
-#%% Import Data
-import pandas as pd
-#import numpy as np
-#from scipy.optimize import minimize
 
-# reading file by pandas
-pd_JRP = pd.read_excel("setA-002.xlsx")
-#print(pd_JRP.columns)
-pd_JRP.head()
-
-D = {}
-for i in items:
-    for t in periods:
-        D[i,t]= pd_JRP['DPP('+str(i+1)+')'][t]
-#print('Demand')
-#print(D)
-h = {}
-h = list(pd_JRP['Holding cost'])
-#print('Holding cost')
-#print(h)
-s = {}
-s = list(pd_JRP['Minor ordering cost P1'])# determining how to fill out the missing data, one suggestion, give the average value
-#print('Minor ordering cost P1')
-#print(s)
-#w = {}
-#w = list(pd_JRP['Weight Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
-#print('Weight Contribution(int)')
-#print(w)
-#v = {}
-#v = list(pd_JRP['Value Contribution(int)'])# determining how to fill out the missing data, one suggestion, give the average value
-#print('Value Contribution(int)')
-#print(v)
-# h=[2,1,4]        # holding costs
-# D=[10,20,5]      # Demand rate
-# s=[2.0,3.0,4.0]  # The minor setup costs
-#print(len(s))
-#items = len(s)  # items
-S=14020.0       # The major setup cost       
-#value = 1000    # capacity of value would allow transpotation to deliveer
-#weight = 150    # capacity of weight would allow transpotation to deliveer
-            
 # %% Random parameters
 import random
 # Freeze rng
@@ -98,7 +114,7 @@ random.seed(42)
 
 #include capacity constraint?
 warehouseC=0
-w = [random.randint(1,50) for i in items]
+#w = [random.randint(1,50) for i in items]
 H=100000000
 
 #include budget constraint?
@@ -106,11 +122,24 @@ budgetC=0
 budget=2000
 costs = [random.randint(1,50) for i in items]
 
+#include value constraint?
+valueREQ=1
+minValue=100
+
+#include weight constraint?
+weightREQ=1
+minWeight=150
+
+
 #include minimum order quantity?
 minC=0
 minOrder=planningHorizon
 # Big M-constraint
-M = 30*planningHorizon
+M={}
+for i in items:
+    M[i] = 0
+    for t in periods:
+        M[i] = M[i]+D[i,t]
 
 # Truck
 truckC=0
@@ -125,7 +154,8 @@ m = Model("JRP_pattern")
 x={}
 for j in patterns:
     for t in periods:
-        x[patterns.index(j),t]=m.addVar(vtype=GRB.BINARY, name="x_p"+str(j)+'_t'+ str(t))
+        x[patterns.index(j),t]=m.addVar(vtype=GRB.BINARY)
+#          , name="x_p"+str(j)+'_t'+ str(t))
 
 #item i is part of pattern j (y[j,i] = 1) or not (y[j,i] = 0)
 y={}
@@ -133,7 +163,6 @@ for j in items:
     for i in items:
         if i==patterns[j]:
             y[patterns.index(j),i]=1
-            print (i)
         else:
             y[patterns.index(j),i]=0
 j=nitems
@@ -152,18 +181,27 @@ for i in items:
         l[i,t] = m.addVar(vtype=GRB.INTEGER, name="l_i"+str(i)+'_t_'+str(t))
         B[i,t] = m.addVar(vtype=GRB.INTEGER, name="B_i"+str(i)+'_t_'+str(t))
         
+HC={}
+HC = m.addVar( vtype=GRB.CONTINUOUS, name = 'HC')
+
+m.addConstr(HC >= quicksum(0.5*(2*l[i,t]+D[i,t])*h[i] for i in items for t in periods))
+
+OC={}
+OC = m.addVar( vtype=GRB.CONTINUOUS, name = 'OC')
+
+m.addConstr(OC >= quicksum(quicksum(x[patterns.index(j),t]*(S+quicksum(s[i,t]*y[patterns.index(j),i] for i in items)) for j in patterns) for t in periods))
 #%% Model constraints
 
 # Every item should be at most one time in a pattern per period        
-for i in items:
-    for t in periods:
-        m.addConstr(quicksum(x[patterns.index(j),t]*y[patterns.index(j),i] for j in patterns) <= 1)
+
+for t in periods:
+    m.addConstr(quicksum(x[patterns.index(j),t] for j in patterns) <= 1)
 
 # Every item is orderd ones
 for i in items:
     m.addConstr(quicksum(x[patterns.index(j),t]*y[patterns.index(j),i] for j in patterns for t in periods) >= 1)
 
-# Statisfy demand and creat stock
+# Satisfy demand and creat stock
 for i in items:
     for t in periods:
         if t != 0:
@@ -174,7 +212,7 @@ for i in items:
 # Linking of B and x
 for i in items:
     for t in periods:
-        m.addConstr(quicksum(M*x[patterns.index(j),t]*y[patterns.index(j),i] for j in patterns) >= B[i,t])
+        m.addConstr(quicksum(M[i]*x[patterns.index(j),t]*y[patterns.index(j),i] for j in patterns) >= B[i,t])
 
 # Warehouse capacity is limited
 if warehouseC==1:
@@ -184,6 +222,18 @@ if warehouseC==1:
 # Budget is limited for reordering
 if budgetC==1:
     m.addConstr(quicksum(B[i,t] for i in items for t in periods) <= budget)
+    
+#Minimum value for ordering
+if valueREQ==1:
+    for t in periods:
+            m.addConstr(quicksum(B[i,t]*v[i] for i in items) >= minValue*quicksum(x[patterns.index(j),t] for j in patterns))
+
+#Minimum weight for ordering
+if weightREQ==1:
+    for t in periods:
+            m.addConstr(quicksum(B[i,t]*w[i] for i in items) >= minWeight*quicksum(x[patterns.index(j),t] for j in patterns))
+
+
 
 # Miniumum number of one item that have to be orderd
 if minC==1:
@@ -196,7 +246,7 @@ if truckC==1:
         for t in periods:
             m.addConstr(x[patterns.index(j),t]*quicksum(B[i,t] for i in items) <= Truck)
             
-obj= quicksum(quicksum(l[i,t]*h[i] for i in items) for t in periods)+quicksum(quicksum(x[patterns.index(j),t]*(S+quicksum(s[i]*y[patterns.index(j),i] for i in items)) for j in patterns) for t in periods)
+obj=quicksum((l[i,t]+0.5*D[i,t])*h[i] for i in items for t in periods)+quicksum(quicksum(x[patterns.index(j),t]*(S+quicksum(s[i,t]*y[patterns.index(j),i] for i in items)) for j in patterns) for t in periods)
 
 m.setObjective(obj, GRB.MINIMIZE)
 m.update()
@@ -204,23 +254,20 @@ m.update()
 #%% Warmstart
 
 def computeInitialSolution(m, x, B, l, D):
-    
-    # Initialze variables with value 0
-    for key, variable in x.items():
-        variable.start = 0
-    for key, variable in B.items():
-        variable.start = 0.0
-    for key, variable in l.items():
-        variable.start = 0.0
-    
+        
     for i in items:
         Quantity = 0
         for t in periods:
             Quantity = D[i,t]+Quantity
-        B[i,0] = Quantity
+        B[i,0] = round(Quantity/5)
+        B[i,4] = round(Quantity/5)
+        B[i,8] = round(Quantity/5)
+        B[i,12] = round(Quantity/5)
+        B[i,16] = round(Quantity/5)
         
-    x[patterns[-1],0] = 1
-
+#    x[patterns[-1],0] = 1
+#    x[patterns[-1],5] = 1
+    
     m.update()
     
     # Check initial solution
@@ -237,8 +284,8 @@ def computeInitialSolution(m, x, B, l, D):
 #%% Start optimization
 
 # Warmstart
-#computeInitialSolution(m, openPlant, transport, capacity[:], demand[:])
 computeInitialSolution(m, x, B, l, D)
+m.setParam('TimeLimit',120)
 m.optimize()
 m.write("model.lp")
 
@@ -251,6 +298,7 @@ for v in m.getVars():
         print('%s %g' % (v.varName, v.x))
 
 print('Obj: %g' % obj.getValue())
+
 
 #printSolution (m,x,y,B,l)
 

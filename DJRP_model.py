@@ -6,7 +6,7 @@ import numpy as np
 import time
 
 #nitems, planningHorizon, MJC, DPP, DAVG, HLC, MNC, CNT_WEIGHT, CNT_VALUE, REQ_WEIGHT, REQ_VALUE, MIN_WEIGHT, MIN_VALUE = \
-inst_set='setA-002'
+inst_set='setB-002'
 instance=inst_set + '.txt'
 nitems, planningHorizon, S, D, DAVG, h, s, w, v, weightREQ, valueREQ, minWeight, minValue = \
     Read_Data.read_Data (instance)
@@ -57,7 +57,7 @@ for t in periods:
     #Constraint: minimum value for ordering
 if valueREQ==1:
     for t in periods:
-            m.addConstr(quicksum(B[i,t]*v[i] for i in items) >= minValue*z[t]*0.5)
+            m.addConstr(quicksum(B[i,t]*v[i] for i in items) >= minValue*z[t])
 
     #Constraint: minimum weight for ordering
 if weightREQ==1:
@@ -91,7 +91,7 @@ comp_time=end-start                                                             
 obj_Value=obj.getValue()
 m.write("Model_%s.lp" %str(inst_set))
 m.write("Solution_%s.sol" %str(inst_set))
-m.printAttr('X')
+#m.printAttr('X')
 
 #PLOT SOLUTIONS
 
@@ -218,7 +218,7 @@ if valueREQ==1:
     plt.show()
     
 #GRAPH 4: Major cost, minor cost and holdings cost
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(8, 4))
 
 #Major ordering cost 
 MJC_order=np.zeros(planningHorizon)
@@ -238,8 +238,8 @@ rects2 = ax.bar(x_axys + width/2, MNC_order, width/3,
 #Holding cost 
 HC_order=np.zeros(planningHorizon)
 for a in periods:
-    HC_order= sum(h[n]*I[n,t].X for n in items)        
-rects3 = ax.bar(x_axys+ 5*width/6, Z_p, width/3, 
+    HC_order[a]= sum(h[n]*I[n,a].X for n in items)        
+rects3 = ax.bar(x_axys+ 5*width/6, HC_order, width/3, 
                 label='Holding cost')
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
@@ -251,27 +251,50 @@ ax.set_xticks(x_legend)
 ax.set_xticklabels(x_legend)
 ax.legend()
 fig.tight_layout()
-plt.margins(y=0.35)
 plt.savefig('Costs_%s.png' %str(inst_set))
 plt.show()
 
 #GRAPH 5: Weight items
 if weightREQ==1:
+    fig, ax = plt.subplots(figsize=(20, 2))
     x_2 = np.arange(nitems) 
     weight=np.zeros(nitems)
     for n in items:
         weight[n]=w[n]
-    plt.step(x_2, weight, where='post', label='Weight')
+    rects3 = ax.bar(x_2, weight, width/3, color='C9',
+                label='Weight')
+    
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Weight')
+    ax.set_xlabel('Items')
+    ax.set_title('Weight each items "%s"' %str(inst_set))
+    x_legend = np.arange(nitems)
+    ax.set_xticks(x_legend)
+    ax.set_xticklabels(x_legend)
+    ax.legend() 
+    fig.tight_layout()
     plt.savefig('Weight each items_%s.png' %str(inst_set))
     plt.show()
 
 #GRAPH 6: Value items
 if valueREQ==1:
+    fig, ax = plt.subplots(figsize=(20, 2))
     x_2 = np.arange(nitems) 
     value=np.zeros(nitems)
     for n in items:
         value[n]=v[n]
-    plt.step(x_2, value,where='post', label='Weight')
-    plt.savefig('Value each item_%s.png' %str(inst_set))
+    rects3 = ax.bar(x_2, value, width/3, color='C5',
+                label='Value')
+    
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Value')
+    ax.set_xlabel('Items')
+    ax.set_title('Value each items "%s"' %str(inst_set))
+    x_legend = np.arange(nitems)
+    ax.set_xticks(x_legend)
+    ax.set_xticklabels(x_legend)
+    ax.legend() 
+    fig.tight_layout()
+    plt.savefig('Value each items_%s.png' %str(inst_set))
     plt.show()
-
+    
